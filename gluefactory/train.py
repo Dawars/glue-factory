@@ -8,12 +8,17 @@ import argparse
 import copy
 import re
 import shutil
+import numpy as np
+import sys
+import wandb
+wandb.login()
+from omegaconf import OmegaConf
+from tqdm import tqdm
 import signal
 from collections import defaultdict
 from pathlib import Path
 from pydoc import locate
 
-import numpy as np
 import torch
 from omegaconf import OmegaConf
 from torch.cuda.amp import GradScaler, autocast
@@ -144,6 +149,15 @@ def filter_parameters(params, regexp):
 
 def get_lr_scheduler(optimizer, conf):
     """Get lr scheduler specified by conf.train.lr_schedule."""
+    if conf.type == 'OneCycleLR':
+        max_lr = conf.max_lr
+        epochs = conf.epochs
+        steps_per_epoch = conf.steps_per_epoch
+        max_lr = conf.max_lr
+        del conf.max_lr
+        del conf.epochs
+        del conf.steps_per_epoch
+        return getattr(torch.optim.lr_scheduler, conf.type)(optimizer, max_lr, epochs=epochs, steps_per_epoch=steps_per_epoch, **conf.options)
     if conf.type not in ["factor", "exp", None]:
         return getattr(torch.optim.lr_scheduler, conf.type)(optimizer, **conf.options)
 
@@ -185,6 +199,13 @@ def pack_lr_parameters(params, base_lr, lr_scaling):
 
 
 def training(rank, conf, output_dir, args):
+    if rank == 0:
+        run = wandb.init(
+        # Set the project where this run will be logged
+         project="light-glue",
+         group='DDP'
+        # Track hyperparameters and run metadata
+    )
     if args.restore:
         logger.info(f"Restoring from previous training of {args.experiment}")
         try:
@@ -265,7 +286,7 @@ def training(rank, conf, output_dir, args):
         val_dataset = get_dataset(val_data_conf.name)(val_data_conf)
 
     # @TODO: add test data loader
-
+    #sys.exit(0)
     if args.overfit:
         # we train and eval with the same single training batch
         logger.info("Data in overfitting mode")
@@ -490,11 +511,12 @@ def training(rank, conf, output_dir, args):
                     )
                     for k, v in losses.items():
                         writer.add_scalar("training/" + k, v, tot_n_samples)
+                        wandb.log({f"training/{k}": v})
                     writer.add_scalar(
                         "training/lr", optimizer.param_groups[0]["lr"], tot_n_samples
                     )
                     writer.add_scalar("training/epoch", epoch, tot_n_samples)
-
+                    wandb.log({"lr": optimizer.param_groups[0]["lr"]})
             if conf.train.log_grad_every_iter is not None:
                 if it % conf.train.log_grad_every_iter == 0:
                     grad_txt = ""
@@ -541,8 +563,10 @@ def training(rank, conf, output_dir, args):
                             writer.add_scalars(f"figure/val/{k}", v, tot_n_samples)
                         else:
                             writer.add_scalar("val/" + k, v, tot_n_samples)
+                            wandb.log({f"val/{k}": v})
                     for k, v in pr_metrics.items():
                         writer.add_pr_curve("val/" + k, *v, tot_n_samples)
+                        wandb.log({f"val/{k}": v})
                     # @TODO: optional always save checkpoint
                     if results[conf.train.best_key] < best_eval:
                         best_eval = results[conf.train.best_key]
