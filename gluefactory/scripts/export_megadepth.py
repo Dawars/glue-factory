@@ -36,6 +36,16 @@ configs = {
             "detection_threshold": 0.000,
         },
     },
+    "sift_hardnet": {
+        "name": f"r{resize}_sift_hardnet-k{n_kpts}",
+        "keys": ["keypoints", "descriptors", "keypoint_scores", "oris", "scales"],
+        "gray": True,
+        "conf": {
+            "name": "extractors.sift_hardnet",
+            "max_num_keypoints": 4096,
+            "backend": "opencv",
+        },
+    },
     "cv2-sift": {
         "name": f"r{resize}_opencv-SIFT-k{n_kpts}",
         "keys": ["keypoints", "descriptors", "keypoint_scores", "oris", "scales"],
@@ -67,13 +77,42 @@ configs = {
             "nms_radius": 3,
         },
     },
-    "keynet-affnet-hardnet": {
-        "name": f"r{resize}_KeyNetAffNetHardNet-k{n_kpts}",
+    "keynet-hardnet": {
+        "name": f"r{resize}_KeyNetHardNet-k4096",
         "keys": ["keypoints", "descriptors", "keypoint_scores", "oris", "scales"],
         "gray": True,
         "conf": {
-            "name": "extractors.keynet_affnet_hardnet",
-            "max_num_keypoints": n_kpts,
+            "name": "extractors.keynet_hardnet",
+            "max_num_keypoints": 4096,#n_kpts,
+        },
+    },
+    "keyaffhardnet": {
+        "name": f"r{resize}_KeyAffHardNet-k4096",
+        "keys": ["keypoints", "descriptors", "keypoint_scores", "oris", "scales", "lafs"],
+        "gray": True,
+        "conf": {
+            "name": "extractors.keyaffhardnet",
+            "max_num_keypoints": 4096,#n_kpts,
+        },
+    },
+    "dedode-g": {
+        "name": f"r{resize}_DeDoDeG-k4096",
+        "keys": ["keypoints", "descriptors", "keypoint_scores"],
+        "gray": False,
+        "conf": {
+            "descriptor": "dedode_descriptor_G.pth",
+            "name": "extractors.dedode",
+            "max_num_keypoints": 4096,
+        },
+    },
+    "dedode": {
+        "name": f"r{resize}_DeDoDe-k4096",
+        "keys": ["keypoints", "descriptors", "keypoint_scores"],
+        "gray": False,
+        "conf": {
+            "max_num_keypoints": 4096,
+            "descriptor": "dedode_descriptor_B.pth",
+            "name": "extractors.dedode",
         },
     },
     "disk": {

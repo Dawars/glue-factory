@@ -137,16 +137,20 @@ class BaseModel(nn.Module, metaclass=MetaModel):
     def is_initialized(self):
         """Recursively check if the model is initialized, i.e. weights are loaded"""
         is_initialized = True  # initialize to true and perform recursive and
-        for _, w in self.named_children():
+        for n, w in self.named_children():
+            if n in  ['laf_desc', 'extractor']:
+                continue
             if isinstance(w, BaseModel):
                 # if children is BaseModel, we perform recursive check
                 is_initialized = is_initialized and w.is_initialized()
+                print (n, w.is_initialized())
             else:
                 # else, we check if self is initialized or the children has no params
                 n_params = len(list(w.parameters()))
                 is_initialized = is_initialized and (
                     n_params == 0 or self.are_weights_initialized
                 )
+                print (n, n_params, self.are_weights_initialized)
         return is_initialized
 
     def set_initialized(self, to: bool = True):
