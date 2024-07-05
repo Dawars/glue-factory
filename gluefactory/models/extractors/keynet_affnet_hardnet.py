@@ -25,33 +25,37 @@ class KeyNetAffNetHardNet(BaseModel):
 
     def _forward(self, data):
         image = data["image"]
+        dev1 = data["image"].device
+        self.model = self.model.to(dev1)
         if image.shape[1] == 3:  # RGB
             scale = image.new_tensor([0.299, 0.587, 0.114]).view(1, 3, 1, 1)
             image = (image * scale).sum(1, keepdim=True)
         lafs, scores, descs = [], [], []
-        im_size = data.get("image_size")
+        im_size = data.get("image_size").long()
+        #print (im_size)
         for i in range(image.shape[0]):
             img_i = image[i : i + 1, :1]
             if im_size is not None:
                 img_i = img_i[:, :, : im_size[i, 1], : im_size[i, 0]]
-            laf, score, desc = self.model(img_i)
+            with torch.inference_mode():
+                laf, score, desc = self.model(img_i)
             xn = pad_to_length(
                 kornia.feature.get_laf_center(laf),
                 self.conf.max_num_keypoints,
                 pad_dim=-2,
                 mode="random_c",
                 bounds=(0, min(img_i.shape[-2:])),
-            )
+            ).to(dev1)
             laf = torch.cat(
                 [
-                    laf,
+                    laf.to(dev1),
                     kornia.feature.laf_from_center_scale_ori(xn[:, score.shape[-1] :]),
                 ],
                 -3,
             )
-            lafs.append(laf)
-            scores.append(pad_to_length(score, self.conf.max_num_keypoints, -1))
-            descs.append(pad_to_length(desc, self.conf.max_num_keypoints, -2))
+            lafs.append(laf.to(dev1))
+            scores.append(pad_to_length(score.to(dev1), self.conf.max_num_keypoints, -1))
+            descs.append(pad_to_length(desc.to(dev1), self.conf.max_num_keypoints, -2))
 
         lafs = torch.cat(lafs, 0)
         scores = torch.cat(scores, 0)
