@@ -9,6 +9,7 @@ from DeDoDe import dedode_detector_L, dedode_descriptor_B, dedode_descriptor_G
 class DeDoDe(BaseModel):
     default_conf = {
         "descriptor": "dedode_descriptor_B.pth",
+        "detector": "https://github.com/Parskatt/DeDoDe/releases/download/dedode_pretrained_models/dedode_detector_L.pth",
         "dense_outputs": False,
         "max_num_keypoints": None,
         "desc_dim": 256,
@@ -21,7 +22,7 @@ class DeDoDe(BaseModel):
     required_data_keys = ["image"]
 
     def _init(self, conf):
-        self.detector =  dedode_detector_L(weights = torch.load("dedode_detector_L.pth", map_location=torch.device('cpu')))
+        self.detector =  dedode_detector_L(weights =  torch.hub.load_state_dict_from_url(conf["detector"], map_location=torch.device('cpu')))
         if conf.descriptor == 'dedode_descriptor_G.pth':
             self.descriptor =  dedode_descriptor_G(weights = torch.load("dedode_descriptor_G.pth"))
         else:
